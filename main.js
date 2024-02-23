@@ -115,6 +115,7 @@ const onloadHandler = () => {
     setInterval(placeStones, 500); //every 1.5 seconds
 
     document.addEventListener('keydown', moveBird);
+    board.addEventListener('touchstart', moveBird);
 };
 
 const restart = () => {
