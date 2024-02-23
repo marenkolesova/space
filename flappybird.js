@@ -6,26 +6,26 @@ let boardHeight = 640;
 
 let context;
 
-// bird параметры
-const bird = {
+// hero параметры
+const hero = {
     x: boardWidth / 8,
     y: boardHeight / 2,
-    width: 34,
-    height: 24,
-    image: './image/flappybird.png',
+    width: 256,
+    height: 256,
+    image: './image/ufo.png',
 };
 
-let birdImg;
+let heroImg;
 
-//pipes параметры
-let pipeArray = [];
-let pipeWidth = 64; //width/height ratio = 384/3072 = 1/8
-let pipeHeight = 512;
-let pipeX = boardWidth;
-let pipeY = 0;
+//stones параметры
+let stoneArray = [];
+let stoneWidth = 64; //width/height ratio = 384/3072 = 1/8
+let stoneHeight = 512;
+let stoneX = boardWidth;
+let stoneY = 0;
 
-let topPipeImg;
-let bottomPipeImg;
+let topStoneImg;
+let bottomStoneImg;
 
 const openingSpace = boardHeight / 4;
 
@@ -46,39 +46,39 @@ const onloadHandler = () => {
     boardHeight = document.documentElement.clientHeight;
     boardWidth = document.body.offsetWidth;
 
-    pipeX = boardWidth;
+    stoneX = boardWidth;
 
     board.height = boardHeight;
     board.width = boardWidth;
 
     context = board.getContext('2d'); //used for drawing
 
-    birdImg = new Image();
-    birdImg.src = bird.image;
+    heroImg = new Image();
+    heroImg.src = hero.image;
 
-    const birdImgLoadHandler = () => {
-        context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+    const heroImgLoadHandler = () => {
+        context.drawImage(heroImg, hero.x, hero.y, hero.width, hero.height);
     };
 
-    birdImg.onload = birdImgLoadHandler;
+    heroImg.onload = heroImgLoadHandler;
 
-    topPipeImg = new Image();
-    topPipeImg.src = './image/toppipe.png';
+    topStoneImg = new Image();
+    topStoneImg.src = './image/stone1.png';
 
-    bottomPipeImg = new Image();
-    bottomPipeImg.src = './image/bottompipe.png';
+    bottomStoneImg = new Image();
+    bottomStoneImg.src = './image/stone2.png';
 
     // обновляет экран одновременно с браузером, движение элементов
     requestAnimationFrame(update);
-    setInterval(placePipes, 1500); //every 1.5 seconds
+    setInterval(placeStones, 1500); //every 1.5 seconds
 
     document.addEventListener('keydown', moveBird);
 };
 
 const restart = () => {
     score = 0;
-    bird.y = boardHeight / 2;
-    pipeArray = [];
+    hero.y = boardHeight / 2;
+    stoneArray = [];
     gameOver = false;
 };
 
@@ -102,25 +102,31 @@ const update = () => {
     // jump
     context.clearRect(0, 0, board.width, board.height);
     velocityY += gravity;
-    bird.y = Math.max(bird.y + velocityY, 0);
-    context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+    hero.y = Math.max(hero.y + velocityY, 0);
+    context.drawImage(heroImg, hero.x, hero.y, hero.width, hero.height);
 
-    if (bird.y > board.height) {
+    if (hero.y > board.height) {
         gameOver = true;
     }
 
-    // pipes
-    for (let i = 0; i < pipeArray.length; i++) {
-        const pipe = pipeArray[i];
-        pipe.x += velocityX;
-        context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
+    // stones
+    for (let i = 0; i < stoneArray.length; i++) {
+        const stone = stoneArray[i];
+        stone.x += velocityX;
+        context.drawImage(
+            stone.img,
+            stone.x,
+            stone.y,
+            stone.width,
+            stone.height
+        );
 
-        if (!pipe.passed && bird.x > pipe.x + pipe.width) {
+        if (!stone.passed && hero.x > stone.x + stone.width) {
             score += 0.5;
-            pipe.passed = true;
+            stone.passed = true;
         }
 
-        if (detectCollision(bird, pipe)) {
+        if (detectCollision(hero, stone)) {
             gameOver = true;
         }
     }
@@ -132,40 +138,40 @@ const update = () => {
 };
 
 /** Добавление препятствий */
-const placePipes = () => {
+const placeStones = () => {
     if (gameOver) {
-        // console.log('gameOver placePipes');
+        // console.log('gameOver placeStones');
         return;
     }
 
     // появление препятствий рандомно
-    const randomPipeY =
-        pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
-    pipeArray.push({
-        img: topPipeImg,
-        x: pipeX,
-        y: randomPipeY,
-        width: pipeWidth,
-        height: pipeHeight,
+    const randomStoneY =
+        stoneY - stoneHeight / 4 - Math.random() * (stoneHeight / 2);
+    stoneArray.push({
+        img: topStoneImg,
+        x: stoneX,
+        y: randomStoneY,
+        width: stoneWidth,
+        height: stoneHeight,
         passed: false,
     });
-    pipeArray.push({
-        img: bottomPipeImg,
-        x: pipeX,
-        y: randomPipeY + pipeHeight + openingSpace,
-        width: pipeWidth,
-        height: pipeHeight,
+    stoneArray.push({
+        img: bottomStoneImg,
+        x: stoneX,
+        y: randomStoneY + stoneHeight + openingSpace,
+        width: stoneWidth,
+        height: stoneHeight,
         passed: false,
     });
 };
 
 // убеждаемся, что птичка врезалась в препятствие
-const detectCollision = (bird, pipe) => {
+const detectCollision = (currentHero, stone) => {
     return (
-        bird.x < pipe.x + pipe.width && //a's top left corner doesn't reach b's top right corner
-        bird.x + bird.width > pipe.x && //a's top right corner passes b's top left corner
-        bird.y < pipe.y + pipe.height && //a's top left corner doesn't reach b's bottom left corner
-        bird.y + bird.height > pipe.y
+        currentHero.x < stone.x + stone.width && //a's top left corner doesn't reach b's top right corner
+        currentHero.x + currentHero.width > stone.x && //a's top right corner passes b's top left corner
+        currentHero.y < stone.y + stone.height && //a's top left corner doesn't reach b's bottom left corner
+        currentHero.y + currentHero.height > stone.y
     ); //a's bottom left corner passes b's top left corner
 };
 

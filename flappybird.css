@@ -13,5 +13,16 @@ body {
 #board {
     /* background-color: darkblue; */
 
-    background-image: url('./image/flappybirdbg.png');
+    background-image: url('./image/spacebg.png');
+    /* background-size: cover; */
+    /* animation: movebg 3s infinite linear; */
+}
+
+@keyframes movebg {
+    from {
+        background-position-x: 0;
+    }
+    to {
+        background-position-x: 100%;
+    }
 }
