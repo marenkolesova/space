@@ -6,12 +6,21 @@ let boardHeight = 640;
 
 let context;
 
+// Фоновые объекты
+let bgImg;
+const bgOffset = 0.5;
+let currentBgX = 0;
+
+let starsImg;
+const starsOffset = 0.2;
+let currentStarsX = 0;
+
 // hero параметры
 const hero = {
     x: boardWidth / 8,
     y: boardHeight / 2,
-    width: 256,
-    height: 256,
+    width: 64,
+    height: 45,
     image: './image/ufo.png',
 };
 
@@ -20,14 +29,15 @@ let heroImg;
 //stones параметры
 let stoneArray = [];
 let stoneWidth = 64; //width/height ratio = 384/3072 = 1/8
-let stoneHeight = 512;
+let stoneHeight = 64;
 let stoneX = boardWidth;
 let stoneY = 0;
 
-let topStoneImg;
-let bottomStoneImg;
+let stoneImg;
+let stoneCoolImg;
+// let bottomStoneImg;
 
-const openingSpace = boardHeight / 4;
+// const openingSpace = boardHeight / 4;
 
 let gameOver = false;
 
@@ -38,13 +48,32 @@ const gravity = 0.4;
 
 let score = 0;
 
+let speedCorrect = 1;
+
 /** при запуске */
 const onloadHandler = () => {
     board = document.getElementById('board');
 
-    console.log(document.body);
     boardHeight = document.documentElement.clientHeight;
-    boardWidth = document.body.offsetWidth;
+    boardWidth = document.documentElement.clientWidth;
+
+    if (boardWidth < 1000) {
+        speedCorrect = 0.5;
+    } else if (boardWidth < 500) {
+        speedCorrect = 0.25;
+    }
+
+    // 4096 X 1360
+    bgImg = new Image();
+    bgImg.height = boardHeight;
+    bgImg.width = Math.round((4096 * boardHeight) / 1360);
+    bgImg.src = './image/spacebg.png';
+
+    // 4096 X 1360
+    starsImg = new Image();
+    starsImg.height = boardHeight;
+    starsImg.width = bgImg.width;
+    starsImg.src = './image/starsbg.png';
 
     stoneX = boardWidth;
 
@@ -52,6 +81,16 @@ const onloadHandler = () => {
     board.width = boardWidth;
 
     context = board.getContext('2d'); //used for drawing
+
+    const bgImgLoadHandler = () => {
+        context.drawImage(bgImg, 0, 0, bgImg.width, bgImg.height);
+    };
+    bgImg.onload = bgImgLoadHandler;
+
+    const starsImgLoadHandler = () => {
+        context.drawImage(starsImg, 0, 0, bgImg.width, bgImg.height);
+    };
+    starsImg.onload = starsImgLoadHandler;
 
     heroImg = new Image();
     heroImg.src = hero.image;
@@ -62,15 +101,18 @@ const onloadHandler = () => {
 
     heroImg.onload = heroImgLoadHandler;
 
-    topStoneImg = new Image();
-    topStoneImg.src = './image/stone1.png';
+    stoneImg = new Image();
+    stoneImg.src = './image/stone1.png';
 
-    bottomStoneImg = new Image();
-    bottomStoneImg.src = './image/stone2.png';
+    stoneCoolImg = new Image();
+    stoneCoolImg.src = './image/stone2.png';
+
+    // bottomStoneImg = new Image();
+    // bottomStoneImg.src = './image/stone2.png';
 
     // обновляет экран одновременно с браузером, движение элементов
     requestAnimationFrame(update);
-    setInterval(placeStones, 1500); //every 1.5 seconds
+    setInterval(placeStones, 500); //every 1.5 seconds
 
     document.addEventListener('keydown', moveBird);
 };
@@ -99,8 +141,28 @@ const update = () => {
         // console.log('gameOver update');
         return;
     }
-    // jump
+
     context.clearRect(0, 0, board.width, board.height);
+
+    currentBgX -= bgOffset;
+    if (currentBgX + bgImg.width <= boardWidth) {
+        currentBgX = boardWidth;
+    }
+    context.drawImage(bgImg, currentBgX, 0, bgImg.width, bgImg.height);
+
+    currentStarsX -= starsOffset;
+    if (currentStarsX + starsImg.width <= boardWidth) {
+        currentStarsX = boardWidth;
+    }
+    context.drawImage(
+        starsImg,
+        currentStarsX,
+        0,
+        starsImg.width,
+        starsImg.height
+    );
+
+    // jump
     velocityY += gravity;
     hero.y = Math.max(hero.y + velocityY, 0);
     context.drawImage(heroImg, hero.x, hero.y, hero.width, hero.height);
@@ -112,7 +174,9 @@ const update = () => {
     // stones
     for (let i = 0; i < stoneArray.length; i++) {
         const stone = stoneArray[i];
-        stone.x += velocityX;
+        stone.x += velocityX * stone.speed * speedCorrect + velocityX;
+        stone.img.style.transform = 'rotate(45deg)';
+
         context.drawImage(
             stone.img,
             stone.x,
@@ -122,7 +186,7 @@ const update = () => {
         );
 
         if (!stone.passed && hero.x > stone.x + stone.width) {
-            score += 0.5;
+            score += 1;
             stone.passed = true;
         }
 
@@ -143,25 +207,23 @@ const placeStones = () => {
         // console.log('gameOver placeStones');
         return;
     }
+    // if else
+    const currentStoneImg = Math.random() > 0.5 ? stoneImg : stoneCoolImg;
 
+    const stoneSpeed = Math.random() * 10;
     // появление препятствий рандомно
-    const randomStoneY =
-        stoneY - stoneHeight / 4 - Math.random() * (stoneHeight / 2);
+    const randomStoneY = Math.random() * boardHeight - stoneHeight;
     stoneArray.push({
-        img: topStoneImg,
+        img: currentStoneImg,
         x: stoneX,
-        y: randomStoneY,
-        width: stoneWidth,
-        height: stoneHeight,
+        y:
+            randomStoneY < stoneHeight
+                ? (Math.random() * boardHeight) / 4
+                : randomStoneY,
+        width: stoneWidth - stoneSpeed,
+        height: stoneHeight - stoneSpeed,
         passed: false,
-    });
-    stoneArray.push({
-        img: bottomStoneImg,
-        x: stoneX,
-        y: randomStoneY + stoneHeight + openingSpace,
-        width: stoneWidth,
-        height: stoneHeight,
-        passed: false,
+        speed: stoneSpeed,
     });
 };
 
