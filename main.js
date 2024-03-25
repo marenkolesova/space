@@ -1,19 +1,25 @@
-//body
+// Элемент для инициализации canvas
 let board;
-// холст
 let boardWidth = 360;
 let boardHeight = 640;
 
 let context;
 
-// Фоновые объекты
-let bgImg;
-const bgOffset = 0.5;
-let currentBgX = 0;
+// Все фоны одинаковых размеров, поэтому достаточно одной переменной
+let bgImgWidth;
 
+// Фоновые объекты
+// Планеты
+let bgImgArray = [];
+let bgImg;
+const bgOffset = 5;
+let setBgImgQueue;
+
+// Звезды
+let starsImgArray = [];
 let starsImg;
-const starsOffset = 0.2;
-let currentStarsX = 0;
+const starsOffset = 3;
+let setStarsQueue;
 
 // hero параметры
 const hero = {
@@ -26,19 +32,15 @@ const hero = {
 
 let heroImg;
 
-//stones параметры
+// stones параметры
 let stoneArray = [];
 let stoneWidth = 64; //width/height ratio = 384/3072 = 1/8
 let stoneHeight = 64;
-let stoneX = boardWidth;
-let stoneY = 0;
 
 let stoneImg;
 let stoneCoolImg;
-// let bottomStoneImg;
 
-// const openingSpace = boardHeight / 4;
-
+// Флаг окончания игры
 let gameOver = false;
 
 // физика
@@ -50,47 +52,52 @@ let score = 0;
 
 let speedCorrect = 1;
 
-/** при запуске */
-const onloadHandler = () => {
+/** Инициализация работы с фонами */
+const initBackgrounds = () => {
+    // Пропорция для фонов
+    bgImgWidth = Math.round((4096 * boardHeight) / 1360);
+
+    // 4096 X 1360
+    starsImg = new Image();
+    starsImg.src = './image/starsbg.png';
+
+    const starsImgLoadHandler = () => {
+        setStarsQueue = setBackgroundQueue(starsImgArray, starsImg);
+        setStarsQueue(0);
+    };
+    starsImg.onload = starsImgLoadHandler;
+
+    // 4096 X 1360
+    bgImg = new Image();
+    bgImg.src = './image/spacebg.png';
+
+    const bgImgLoadHandler = () => {
+        setBgImgQueue = setBackgroundQueue(bgImgArray, bgImg);
+        setBgImgQueue(boardWidth);
+    };
+    bgImg.onload = bgImgLoadHandler;
+};
+
+/** Инициализация игрового поля */
+const initBoardSize = () => {
     board = document.getElementById('board');
 
     boardHeight = document.documentElement.clientHeight;
     boardWidth = document.documentElement.clientWidth;
+
+    board.height = boardHeight;
+    board.width = boardWidth;
 
     if (boardWidth < 1000) {
         speedCorrect = 0.5;
     } else if (boardWidth < 500) {
         speedCorrect = 0.25;
     }
+};
 
-    // 4096 X 1360
-    bgImg = new Image();
-    bgImg.height = boardHeight;
-    bgImg.width = Math.round((4096 * boardHeight) / 1360);
-    bgImg.src = './image/spacebg.png';
-
-    // 4096 X 1360
-    starsImg = new Image();
-    starsImg.height = boardHeight;
-    starsImg.width = bgImg.width;
-    starsImg.src = './image/starsbg.png';
-
-    stoneX = boardWidth;
-
-    board.height = boardHeight;
-    board.width = boardWidth;
-
-    context = board.getContext('2d'); //used for drawing
-
-    const bgImgLoadHandler = () => {
-        context.drawImage(bgImg, 0, 0, bgImg.width, bgImg.height);
-    };
-    bgImg.onload = bgImgLoadHandler;
-
-    const starsImgLoadHandler = () => {
-        context.drawImage(starsImg, 0, 0, bgImg.width, bgImg.height);
-    };
-    starsImg.onload = starsImgLoadHandler;
+/** Инициализация препятствий и тарелки */
+const initGameObjects = () => {
+    context = board.getContext('2d');
 
     heroImg = new Image();
     heroImg.src = hero.image;
@@ -106,18 +113,50 @@ const onloadHandler = () => {
 
     stoneCoolImg = new Image();
     stoneCoolImg.src = './image/stone2.png';
+};
 
-    // bottomStoneImg = new Image();
-    // bottomStoneImg.src = './image/stone2.png';
+/** Обработка изменения размеров экрана */
+const resizeHandler = () => {
+    initBoardSize();
+
+    // Пропорция для фонов
+    bgImgWidth = Math.round((4096 * boardHeight) / 1360);
+
+    bgImgArray.forEach((el) => {
+        el.height = boardHeight;
+        el.width = bgImgWidth;
+    });
+
+    starsImgArray.forEach((el) => {
+        el.height = boardHeight;
+        el.width = bgImgWidth;
+    });
+};
+
+/** Запуск игры */
+const onloadHandler = () => {
+    initBoardSize();
+    initBackgrounds();
+    initGameObjects();
+
+    // Движение тарелки по нажатию клавиатуры
+    document.addEventListener('keydown', moveHero);
+    // Движение тарелки по нажатию мыши
+    document.addEventListener('mousedown', moveHero);
+    // Движение тарелки по касанию экрана
+    board.addEventListener('touchstart', moveHero);
+
+    // Пересчет пропорций при изменении размера экрана
+    window.addEventListener('resize', resizeHandler);
 
     // обновляет экран одновременно с браузером, движение элементов
     requestAnimationFrame(update);
-    setInterval(placeStones, 500); //every 1.5 seconds
 
-    document.addEventListener('keydown', moveBird);
-    board.addEventListener('touchstart', moveBird);
+    // Добавляем препятствие каждые полсекунды
+    setInterval(placeStones, 500);
 };
 
+// Новая игра
 const restart = () => {
     score = 0;
     hero.y = boardHeight / 2;
@@ -125,8 +164,8 @@ const restart = () => {
     gameOver = false;
 };
 
-// jump height
-const moveBird = () => {
+// Взлет
+const moveHero = () => {
     velocityY = -6;
 
     if (gameOver) {
@@ -134,49 +173,43 @@ const moveBird = () => {
     }
 };
 
+// Счет
+const displayScore = () => {
+    context.fillStyle = 'white';
+    context.font = '45px sans-serif';
+    context.fillText(score, 5, 45);
+};
+
 /** Обновление экрана */
 const update = () => {
     requestAnimationFrame(update);
 
     if (gameOver) {
-        // console.log('gameOver update');
         return;
     }
 
     context.clearRect(0, 0, board.width, board.height);
 
-    currentBgX -= bgOffset;
-    if (currentBgX + bgImg.width <= boardWidth) {
-        currentBgX = boardWidth;
+    // Отрисовка фонов
+    setBgImgQueue && setBgImgQueue();
+    for (let i = 0; i < bgImgArray.length; i++) {
+        const bg = bgImgArray[i];
+        bg.x -= bgOffset;
+
+        context.drawImage(bg.img, bg.x, 0, bg.width, bg.height);
     }
-    context.drawImage(bgImg, currentBgX, 0, bgImg.width, bgImg.height);
+    setStarsQueue && setStarsQueue();
+    for (let i = 0; i < starsImgArray.length; i++) {
+        const stars = starsImgArray[i];
+        stars.x -= starsOffset;
 
-    currentStarsX -= starsOffset;
-    if (currentStarsX + starsImg.width <= boardWidth) {
-        currentStarsX = boardWidth;
-    }
-    context.drawImage(
-        starsImg,
-        currentStarsX,
-        0,
-        starsImg.width,
-        starsImg.height
-    );
-
-    // jump
-    velocityY += gravity;
-    hero.y = Math.max(hero.y + velocityY, 0);
-    context.drawImage(heroImg, hero.x, hero.y, hero.width, hero.height);
-
-    if (hero.y > board.height) {
-        gameOver = true;
+        context.drawImage(stars.img, stars.x, 0, stars.width, stars.height);
     }
 
-    // stones
+    // Отрисовка препятствий
     for (let i = 0; i < stoneArray.length; i++) {
         const stone = stoneArray[i];
         stone.x += velocityX * stone.speed * speedCorrect + velocityX;
-        stone.img.style.transform = 'rotate(45deg)';
 
         context.drawImage(
             stone.img,
@@ -196,27 +229,76 @@ const update = () => {
         }
     }
 
-    // score counter
-    context.fillStyle = 'white';
-    context.font = '45px sans-serif';
-    context.fillText(score, 5, 45);
+    // Физика прыжка, отрисовка тарелки
+    velocityY += gravity;
+    hero.y = Math.max(hero.y + velocityY, 0);
+    context.drawImage(heroImg, hero.x, hero.y, hero.width, hero.height);
+
+    // Вылет за пределы низа экрана
+    if (hero.y > board.height) {
+        gameOver = true;
+    }
+
+    // Обновление счета
+    displayScore();
+};
+
+/** Очередь фонов */
+const setBackgroundQueue = (bgArray, img) => {
+    const resultFunction = (startX) => {
+        // удаляем пролетевший кусок фона
+        if (bgArray.length === 2) {
+            const firstBg = bgArray[0];
+
+            if (firstBg.x < -bgImgWidth) {
+                bgArray.splice(0, 1);
+            }
+        }
+
+        if (bgArray.length === 1) {
+            const currentBg = bgArray[0];
+            // Добавляем продолжение фона
+            if (currentBg.x > -boardWidth) {
+                bgArray.push({
+                    img: img,
+                    x: currentBg.x + bgImgWidth,
+                    y: 0,
+                    width: bgImgWidth,
+                    height: boardHeight,
+                });
+            }
+        } else if (startX !== undefined) {
+            // Добавляем стартовый фон
+            bgArray.push({
+                img: img,
+                x: startX,
+                y: 0,
+                width: bgImgWidth,
+                height: boardHeight,
+            });
+        }
+    };
+
+    return resultFunction;
 };
 
 /** Добавление препятствий */
 const placeStones = () => {
     if (gameOver) {
-        // console.log('gameOver placeStones');
         return;
     }
-    // if else
     const currentStoneImg = Math.random() > 0.5 ? stoneImg : stoneCoolImg;
 
     const stoneSpeed = Math.random() * 10;
     // появление препятствий рандомно
     const randomStoneY = Math.random() * boardHeight - stoneHeight;
+
+    // удаляем пролетевшие камни
+    stoneArray = stoneArray.filter((o) => o.x > -stoneWidth);
+
     stoneArray.push({
         img: currentStoneImg,
-        x: stoneX,
+        x: boardWidth,
         y:
             randomStoneY < stoneHeight
                 ? (Math.random() * boardHeight) / 4
@@ -228,15 +310,15 @@ const placeStones = () => {
     });
 };
 
-// убеждаемся, что птичка врезалась в препятствие
+// Ловим столкновение
 const detectCollision = (currentHero, stone) => {
     return (
-        currentHero.x < stone.x + stone.width && //a's top left corner doesn't reach b's top right corner
-        currentHero.x + currentHero.width > stone.x && //a's top right corner passes b's top left corner
-        currentHero.y < stone.y + stone.height && //a's top left corner doesn't reach b's bottom left corner
+        currentHero.x < stone.x + stone.width &&
+        currentHero.x + currentHero.width > stone.x &&
+        currentHero.y < stone.y + stone.height &&
         currentHero.y + currentHero.height > stone.y
-    ); //a's bottom left corner passes b's top left corner
+    );
 };
 
-// загрузка окна = функция1
+// Запускаем игру после срабатывания события загрузки окна
 window.onload = onloadHandler;
